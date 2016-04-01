@@ -50,18 +50,20 @@ def stem3c(ax, x, y, z):
         ax.add_line(line)   
 
         
-def plot_xy_err_2d(indVar, dx, dy, xLabel=''):
+def plot_xy_err_2d(indVar, dx, dy, xLabel='', yLabel=''):
     "Generates a 2D plot of position error in x and y dimensions"
     fig = plt.figure(figsize=(12,6))
     ax = fig.add_subplot(121)
     plt.plot(indVar, dx, 'bo')
     plt.plot([np.min(indVar), np.max(indVar)], [0,0], 'k--')
     ax.set_xlabel(xLabel)
+    ax.set_ylabel(yLabel)
     ax.set_title('x error')
 
     ax = fig.add_subplot(122)
     ax.plot(indVar, dy, 'bo')
     ax.plot([np.min(indVar), np.max(indVar)], [0,0], 'k--')
     ax.set_xlabel(xLabel)
+    ax.set_ylabel(yLabel)
     ax.set_title('y error')
 
