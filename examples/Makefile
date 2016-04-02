@@ -4,6 +4,9 @@
 default :
 	@echo "please pick a report to publish"
 
+all : nist-maraging apl01-maraging
+
+
 nist-maraging :
 	ipython nbconvert --to pdf --template latex_nocode NIST_M290_maraging_steel.ipynb
 
