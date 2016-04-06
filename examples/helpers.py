@@ -5,6 +5,7 @@ Helper functions used in jupyter notebooks in this directory.
 import csv
 import numpy as np
 import pylab as plt
+from matplotlib import cm
 from mpl_toolkits.mplot3d import axes3d, art3d
 
 
@@ -56,6 +57,19 @@ def plot_xy_err_2d(indVar, dx, dy, xLabel='', yLabel=''):
 # Functions for fitting Gaussian processes (GPs)
 #-------------------------------------------------------------------------------
 
+def to_col(v): 
+    return np.reshape(v, (v.size,1))
+
+
+def hold_out(v, idx):
+    """Creates an (n x 1) array which is a copy of v without element v[idx].
+    """
+    rv = np.copy(v)
+    rv = np.reshape(v, (v.size,1))  # for GPy, which wants 2 dimensions
+    np.delete(rv, idx, 0)
+    return rv
+
+
 def loo_err_1d(kernel, x, y):
     """
     Generates an estimate of leave-one-out error for a 1d data set.
@@ -65,15 +79,6 @@ def loo_err_1d(kernel, x, y):
                 the underlying function was observations.
        y      : a (n x 1) numpy array corresponding to f(x) (i.e. observations)
     """
-
-    def hold_out(v, idx):
-        """Creates an (n x 1) array which is a copy of v without element v[idx].
-        """
-        rv = np.copy(v)
-        rv = np.reshape(v, (v.size,1))  # for GPy, which wants 2 dimensions
-        np.delete(rv, idx, 0)
-        return rv
-
     def to_col(v): return np.reshape(v, (v.size,1))
 
     errl2 = np.zeros((x.size,1), dtype=np.float32)
@@ -90,3 +95,64 @@ def loo_err_1d(kernel, x, y):
         ypred[ii] = ymu
 
     return np.sqrt(np.sum(errl2)), ypred
+
+
+
+def plot_gp_mean_2d(gp, Xobs, yobs,
+                    title=None, outfile=None):
+    """Visualize the mean of a Gaussian process that has already been fit to data.
+    """
+    assert(Xobs.ndim == 2)
+    assert(Xobs.shape[1] == 2)
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    #------------------------------
+    # show observations and 95% CI
+    #------------------------------
+    if Xobs is not None and Xobs.size > 0:
+        [ymu, ys2] = gp.predict(Xobs)
+        [yq1, yq2] = gp.predict_quantiles(Xobs)   # ~\pm 2*sqrt(ys2)
+        
+        ax.scatter(Xobs[:,0], Xobs[:,1], yobs, c='r', marker='o')
+
+        for ii in range(len(yq1)):
+            line = art3d.Line3D((Xobs[ii,0], Xobs[ii,0]),
+                                (Xobs[ii,1], Xobs[ii,1]),
+                                (yq1[ii], yq2[ii]),
+                                marker='', markevery=(1,1), color='r')
+            ax.add_line(line)
+
+        
+    #------------------------------
+    # show surrogate mean for domain of interest
+    #------------------------------
+    n = 100
+    xMin = np.min(Xobs, axis=0)
+    xMax = np.max(Xobs, axis=0)
+    Xp1, Xp2 = np.meshgrid(np.linspace(xMin[0], xMax[0], n),
+                           np.linspace(xMin[1], xMax[1], n))
+    Xp = np.column_stack((to_col(Xp1), to_col(Xp2)))
+
+    [ymu, ys2] = gp.predict(Xp)
+    Mu = np.reshape(ymu, Xp1.shape)
+    S2 = np.reshape(ys2, Xp1.shape)
+    
+    ax.plot_wireframe(Xp1, Xp2, Mu, alpha=0.3)
+    
+    ax.contour(Xp1, Xp2, Mu,
+               zdir='z', offset=ax.get_zlim()[0], cmap=cm.coolwarm)
+
+    #------------------------------
+    # add annotations and extras
+    #------------------------------
+    ax.set_xlabel('x'); ax.set_ylabel('y');  ax.set_zlabel('error')
+
+    if title:
+        plt.title(title)
+
+    if outfile:
+        plt.savefig(outfile, bbox_inches='tight')
+
+
